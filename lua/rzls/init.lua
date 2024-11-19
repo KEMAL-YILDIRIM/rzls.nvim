@@ -47,6 +47,7 @@ function M.setup(config)
     rzlsconfig.path = rzlsconfig.path or get_cmd_path(rzlsconfig)
     vim.filetype.add({
         extension = {
+            cshtml = "cshtml",
             razor = "razor",
         },
     })
