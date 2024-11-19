@@ -6,57 +6,42 @@ local razor = require("rzls.razor")
 return function(params)
     ---@type lsp.Position
     local position = params.position
-    ---@type integer
-    local razor_bufnr = vim.uri_to_bufnr(params.textDocument.uri)
-    local razor_docname = vim.api.nvim_buf_get_name(razor_bufnr)
 
-    local rvd = documentstore.get_virtual_document(razor_docname, 0, razor.language_kinds.razor)
+    local rvd = documentstore.get_virtual_document(params.textDocument.uri, razor.language_kinds.razor)
     assert(rvd, "Could not find virtual document")
-    local client = rvd:get_lsp_client()
-    assert(client, "Could not find Razor Client")
 
-    local language_query_response = client.request_sync("razor/languageQuery", {
-        position = position,
-        uri = vim.uri_from_bufnr(razor_bufnr),
-    }, nil, razor_bufnr)
+    local language_query_response, err = rvd:language_query(position)
 
-    assert(language_query_response)
+    if not language_query_response or err then
+        return
+    end
 
     local virtual_document = documentstore.get_virtual_document(
-        vim.uri_from_bufnr(razor_bufnr),
-        language_query_response.result.hostDocumentVersion,
-        language_query_response.result.kind
+        rvd.path,
+        language_query_response.kind,
+        language_query_response.hostDocumentVersion
     )
     assert(virtual_document)
 
-    local virtual_buf_client = virtual_document:get_lsp_client()
-
-    if virtual_buf_client == nil then
-        return
-    end
-
-    local hover_result = virtual_buf_client.request_sync("textDocument/hover", {
+    ---@type lsp.Hover?
+    local hover_result = virtual_document:lsp_request(vim.lsp.protocol.Methods.textDocument_hover, {
         textDocument = {
-            uri = vim.uri_from_bufnr(virtual_document.buf),
+            uri = virtual_document.path,
         },
-        position = language_query_response.result.position,
-    }, nil, virtual_document.buf)
+        position = language_query_response.position,
+    })
 
-    if not hover_result or hover_result.result == nil then
+    if not hover_result then
         return
     end
 
-    local response = client.request_sync("razor/mapToDocumentRanges", {
-        razorDocumentUri = vim.uri_from_bufnr(razor_bufnr),
-        kind = language_query_response.result.kind,
-        projectedRanges = { hover_result.result.range },
-    }, nil, razor_bufnr)
+    local response = rvd:map_to_document_ranges(language_query_response.kind, { hover_result.range })
 
-    if response and response.result ~= nil and response.result.ranges[1] ~= nil then
+    if response and response.ranges[1] ~= nil then
         ---@type lsp.Hover
         return {
-            contents = hover_result.result.contents,
-            range = response.result.ranges[1],
+            contents = hover_result.contents,
+            range = response.ranges[1],
         }
     end
 end

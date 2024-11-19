@@ -44,7 +44,7 @@ return {
     ["razor/provideCodeActions"] = not_implemented,
     ["razor/resolveCodeActions"] = not_implemented,
     ["razor/provideHtmlColorPresentation"] = not_supported,
-    ["razor/provideHtmlDocumentColor"] = not_implemented,
+    ["razor/provideHtmlDocumentColor"] = require("rzls.handlers.providehtmldocumentcolor"),
     ["razor/provideSemanticTokensRange"] = require("rzls.handlers.providesemantictokensrange"),
     ["razor/foldingRange"] = not_implemented,
 
@@ -69,6 +69,7 @@ return {
     ["razor/csharpPullDiagnostics"] = require("rzls.handlers.csharppulldiagnostics"),
     ["textDocument/colorPresentation"] = not_supported,
     ["razor/completion"] = require("rzls.handlers.completion"),
+    ["razor/completionItem/resolve"] = require("rzls.handlers.completionitemresolve"),
     ["window/logMessage"] = function(_, result)
         Log.rzls = result.message
         return vim.lsp.handlers[vim.lsp.protocol.Methods.window_logMessage]
