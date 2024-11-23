@@ -29,16 +29,15 @@ return {
     ["razor/mapCode"] = not_implemented,
 
     -- VS Windows and VS Code
-    ---@param err lsp.ResponseError
+    ---@param _err lsp.ResponseError
     ---@param result VBufUpdate
-    ["razor/updateCSharpBuffer"] = function(err, result)
-        assert(not err, vim.inspect(err))
+    ["razor/updateCSharpBuffer"] = function(_err, result)
         documentstore.update_vbuf(result, razor.language_kinds.csharp)
+        documentstore.refresh_parent_views(result)
     end,
-    ---@param err lsp.ResponseError
+    ---@param _err lsp.ResponseError
     ---@param result VBufUpdate
-    ["razor/updateHtmlBuffer"] = function(err, result)
-        assert(not err, vim.inspect(err))
+    ["razor/updateHtmlBuffer"] = function(_err, result)
         documentstore.update_vbuf(result, razor.language_kinds.html)
     end,
     ["razor/provideCodeActions"] = not_implemented,
@@ -52,8 +51,8 @@ return {
     ["razor/htmlOnTypeFormatting"] = not_implemented,
     ["razor/simplifyMethod"] = not_implemented,
     ["razor/formatNewFile"] = not_implemented,
-    ["razor/inlayHint"] = not_implemented,
-    ["razor/inlayHintResolve"] = not_implemented,
+    ["razor/inlayHint"] = require("rzls.handlers.inlayhint"),
+    ["razor/inlayHintResolve"] = require("rzls.handlers.inlayhintresolve"),
 
     -- VS Windows only at the moment, but could/should be migrated
     ["razor/documentSymbol"] = not_implemented,
