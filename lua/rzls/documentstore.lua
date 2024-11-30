@@ -167,6 +167,7 @@ function M.initialize(client)
     vim.notify("Connected to roslyn via pipe:" .. pipe_name, vim.log.levels.INFO, { title = "rzls.nvim" })
 
     initialize_roslyn()
+    vim.lsp.semantic_tokens.force_refresh(0)
 end
 
 local state = {
@@ -177,6 +178,14 @@ local state = {
         return pipe_name
     end,
 }
+
+function M.load_existing_files(path)
+    local files = vim.fn.glob(path .. "/**/*.razor", true, true)
+    for _, file in ipairs(files) do
+        Log.rzlsnvim = "Preloading " .. file .. " into documentstore"
+        M.register_vbufs_by_path(file)
+    end
+end
 
 setmetatable(M, {
     __index = function(_, k)
