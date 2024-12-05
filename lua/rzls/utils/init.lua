@@ -18,9 +18,14 @@ local eols = {
     mac = "\r",
 }
 
----@param bufnr integer
-function M.buffer_eol(bufnr)
-    return eols[vim.bo[bufnr].fileformat]
+---@param content string
+function M.buffer_eol(content)
+	for _, v in pairs(eols) do
+		local cap = string.match(content, v)
+		if cap ~= nil then
+			return v
+		end
+	end
 end
 
 math.randomseed(tonumber(tostring(os.time()):reverse():sub(1, 9)))

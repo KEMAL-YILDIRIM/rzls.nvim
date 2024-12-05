@@ -70,7 +70,7 @@ function M.update_vbuf(result, language_kind)
 
     virtual_document:update_content(result)
 
-    local buf_eol = utils.buffer_eol(virtual_document.buf)
+    local buf_eol = utils.buffer_eol(virtual_document.content)
     local lines = vim.fn.split(virtual_document.content, buf_eol, true)
     vim.api.nvim_buf_set_lines(virtual_document.buf, 0, -1, false, lines)
 end

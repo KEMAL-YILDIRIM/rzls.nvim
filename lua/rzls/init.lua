@@ -5,6 +5,9 @@ local Log = require("rzls.log")
 
 local M = {}
 
+local sysname = vim.uv.os_uname().sysname:lower()
+local iswin = not not (sysname:find("windows") or sysname:find("mingw"))
+
 ---@class rzls.Config
 ---@field on_attach function
 ---@field capabilities table
@@ -14,17 +17,15 @@ local M = {}
 ---@param config rzls.Config
 ---@return string
 local function get_cmd_path(config)
-    ---@return string
-    local function get_mason_installation()
-        local mason_installation = vim.fs.joinpath(vim.fn.stdpath("data") --[[@as string]], "mason", "bin", "rzls")
-        return vim.uv.os_uname().sysname == "Windows_NT" and string.format("%s.cmd", mason_installation)
-            or mason_installation
+    local data = string.gsub(vim.fn.stdpath("data") --[[@as string]], "\\", "/")
+    local mason_path = vim.fs.joinpath(data, "mason", "bin", "rzls")
+    local mason_installation = iswin and string.format("%s.cmd", mason_path) or mason_path
+
+    if vim.uv.fs_stat(mason_installation) ~= nil then
+        return mason_installation
     end
 
-    if config.path then
-        return config.path
-    end
-    return get_mason_installation()
+    return config.path
 end
 
 ---@type rzls.Config
@@ -37,9 +38,9 @@ local defaultConfg = {
 
 ---@param config rzls.Config
 function M.setup(config)
-    Log.rzlsnvim = "Ran Setup"
+    Log.rzlsnvim = "Setting rzls config"
     local rzlsconfig = vim.tbl_deep_extend("force", defaultConfg, config)
-    rzlsconfig.path = rzlsconfig.path or get_cmd_path(rzlsconfig)
+    rzlsconfig.path = get_cmd_path(rzlsconfig)
     vim.filetype.add({
         extension = {
             cshtml = "cshtml",
@@ -50,9 +51,9 @@ function M.setup(config)
     local au = vim.api.nvim_create_augroup("rzls", { clear = true })
 
     vim.api.nvim_create_autocmd("FileType", {
-        pattern = "razor",
+        pattern = { "razor", "cshtml" },
         callback = function(ev)
-            local root_dir = vim.fn.getcwd()
+            local root_dir = vim.fn.expand("%:h")
             local lsp_client_id = vim.lsp.start({
                 name = "rzls",
                 cmd = {
@@ -68,6 +69,7 @@ function M.setup(config)
                     documentstore.load_existing_files(client.root_dir)
                     ---@module "roslyn"
                     local roslyn_pipes = require("roslyn.server").get_pipes()
+                    vim.notify("starting rzls: " .. rzlsconfig.path)
                     if roslyn_pipes[root_dir] then
                         documentstore.initialize(client)
                     else
