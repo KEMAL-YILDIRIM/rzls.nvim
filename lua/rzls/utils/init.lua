@@ -12,19 +12,16 @@ function M.debug(val, message)
     return val
 end
 
-local eols = {
-    dos = "\r\n",
-    unix = "\n",
-    mac = "\r",
-}
-
 ---@param content string
 function M.buffer_eol(content)
-	for _, v in pairs(eols) do
-		local cap = string.match(content, v)
-		if cap ~= nil then
-			return v
-		end
+	if string.match(content, "\r\n") then
+	return "\r\n" --dos
+	end
+	if string.match(content, "\n") then
+	return "\n" --unix
+	end
+	if string.match(content, "\r") then
+	return "\r" --mac
 	end
 end
 
