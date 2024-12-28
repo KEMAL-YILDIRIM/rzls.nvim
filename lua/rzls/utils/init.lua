@@ -7,7 +7,7 @@ local M = {}
 function M.debug(val, message)
     if true then
         local prefix = message and message .. ": " or ""
-        vim.print(prefix .. vim.inspect(val))
+        print(prefix .. vim.inspect(val))
     end
     return val
 end

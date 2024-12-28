@@ -165,7 +165,7 @@ function M.initialize(client)
         })
     end
 
-    vim.notify("Connected to roslyn via pipe:" .. pipe_name, vim.log.levels.INFO, { title = "rzls.nvim" })
+    print("Connected to roslyn via pipe:" .. pipe_name, vim.log.levels.INFO, { title = "rzls.nvim" })
 
     initialize_roslyn()
     vim.lsp.semantic_tokens.force_refresh(0)

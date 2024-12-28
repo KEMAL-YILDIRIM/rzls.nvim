@@ -17,7 +17,7 @@ local iswin = not not (sysname:find("windows") or sysname:find("mingw"))
 ---@param config rzls.Config
 ---@return string
 local function get_cmd_path(config)
-    local data = string.gsub(vim.fn.stdpath("data") --[[@as string]], "\\", "/")
+    local data = vim.fs.normalize(vim.fn.stdpath("data") --[[@as string]])
     local mason_path = vim.fs.joinpath(data, "mason", "bin", "rzls")
     local mason_installation = iswin and string.format("%s.cmd", mason_path) or mason_path
 
@@ -48,12 +48,12 @@ function M.setup(config)
         },
     })
 
-    local aug = vim.api.nvim_create_augroup("rzls", { clear = true })
+    local au = vim.api.nvim_create_augroup("rzls", { clear = true })
 
     vim.api.nvim_create_autocmd("FileType", {
         pattern = { "razor", "cshtml" },
         callback = function(ev)
-            local root_dir = vim.fn.expand("%:h")
+            local root_dir = vim.fn.expand("%:h:p")
             local lsp_client_id = vim.lsp.start({
                 name = "rzls",
                 cmd = {
@@ -79,7 +79,7 @@ function M.setup(config)
                             callback = function()
                                 documentstore.initialize(client)
                             end,
-                            group = aug,
+                            group = au,
                         })
                     end
                     M.watch_new_files(root_dir)
@@ -88,7 +88,7 @@ function M.setup(config)
                 on_attach = function(client, bufnr)
                     vim.notify("starting rzls: " .. rzlsconfig.path)
                     razor.apply_highlights()
-                    documentstore.register_vbufs_by_path(vim.uri_to_fname(vim.uri_from_bufnr(bufnr)), true)
+                    documentstore.register_vbufs(bufnr)
                     rzlsconfig.on_attach(client, bufnr)
                 end,
                 capabilities = rzlsconfig.capabilities,
@@ -119,13 +119,13 @@ function M.setup(config)
 
             vim.lsp.buf_attach_client(ev.buf, aftershave_client_id)
         end,
-        group = aug,
+        group = au,
     })
 
     vim.treesitter.language.register("html", { "razor" })
 
     vim.api.nvim_create_autocmd("ColorScheme", {
-        group = aug,
+        group = au,
         callback = razor.apply_highlights,
     })
 end

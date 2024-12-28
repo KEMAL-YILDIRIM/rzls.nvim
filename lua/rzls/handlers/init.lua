@@ -3,11 +3,11 @@ local razor = require("rzls.razor")
 local Log = require("rzls.log")
 
 local not_implemented = function(err, result, ctx, config)
-    vim.print("Called " .. ctx.method)
-    vim.print(vim.inspect(err))
-    vim.print(vim.inspect(result))
-    vim.print(vim.inspect(ctx))
-    vim.print(vim.inspect(config))
+    print("Called " .. ctx.method)
+    print(vim.inspect(err))
+    print(vim.inspect(result))
+    print(vim.inspect(ctx))
+    print(vim.inspect(config))
     return { "error" }
 end
 
