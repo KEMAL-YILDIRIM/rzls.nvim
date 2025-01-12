@@ -81,13 +81,12 @@ function M.setup(config)
                             group = au,
                         })
                     end
-                    M.watch_new_files(root_dir)
                 end,
                 root_dir = root_dir,
                 on_attach = function(client, bufnr)
                     vim.notify("starting rzls: " .. rzlsconfig.path)
                     razor.apply_highlights()
-                    documentstore.register_vbufs(bufnr)
+                    documentstore.register_vbufs_by_path(vim.uri_to_fname(vim.uri_from_bufnr(bufnr)), true)
                     rzlsconfig.on_attach(client, bufnr)
                 end,
                 capabilities = rzlsconfig.capabilities,
@@ -127,26 +126,6 @@ function M.setup(config)
         group = au,
         callback = razor.apply_highlights,
     })
-end
-
-function M.watch_new_files(path)
-    local w = vim.uv.new_fs_event()
-    assert(w)
-
-    local fullpath = vim.fn.fnamemodify(path, ":p")
-
-    w:start(fullpath, {
-        recursive = true,
-    }, function(err, filename, _events)
-        assert(not err, err)
-        Log.rzlsnvim = "Filesystem changed - " .. filename
-        if vim.fn.fnamemodify(filename, ":e") == "razor" then
-            Log.rzlsnvim = "Filesystem changed  " .. filename .. " updating documentstore"
-            vim.schedule(function()
-                documentstore.register_vbufs_by_path(filename)
-            end)
-        end
-    end)
 end
 
 return M
