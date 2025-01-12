@@ -108,11 +108,6 @@ function M.update_vbuf(result, language_kind)
         virtual_document.content = ""
     end
 
-    -- local buf_eol = utils.buffer_eol(virtual_document.content)
-    -- local lines = vim.fn.split(virtual_document.content, buf_eol, true)
-    -- vim.print(string.format('eol: %s \n lines: %s', vim.inspect(buf_eol), vim.inspect(lines)))
-    -- vim.api.nvim_buf_set_lines(virtual_document.buf, 0, -1, false, lines)
-
     if virtual_document.buf then
         virtual_document:remove_provisional_dot()
         if not vim.tbl_isempty(virtual_document.updates) then
