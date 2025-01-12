@@ -43,7 +43,6 @@ function M.setup(config)
     rzlsconfig.path = get_cmd_path(rzlsconfig)
     vim.filetype.add({
         extension = {
-            cshtml = "cshtml",
             razor = "razor",
         },
     })
@@ -51,7 +50,7 @@ function M.setup(config)
     local au = vim.api.nvim_create_augroup("rzls", { clear = true })
 
     vim.api.nvim_create_autocmd("FileType", {
-        pattern = { "razor", "cshtml" },
+        pattern = { "razor" },
         callback = function(ev)
             local root_dir = vim.fn.expand("%:h:p")
             local lsp_client_id = vim.lsp.start({
