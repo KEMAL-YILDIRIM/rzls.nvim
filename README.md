@@ -57,7 +57,7 @@ require('mason').setup {
 
 You must install the following plug ins:
 
-- [seblj/roslyn.nvim](https://github.com/seblj/roslyn.nvim)
+- [seblyng/roslyn.nvim](https://github.com/seblyng/roslyn.nvim)
 
 > [!CAUTION]
 > Please see Integration section for extra arguments that must be passed to
@@ -79,13 +79,14 @@ You can pass a configuration table to the `setup` function. The configuration op
 - `path`: The path to the rzls executable if not installed via mason. If you
   have installed via mason you can omit this option.
 
-You also must configure the [`roslyn.nvim`](https://github.com/seblj/roslyn.nvim) plugin
+You also must configure the [`roslyn.nvim`](https://github.com/seblyng/roslyn.nvim) plugin
 to communicate with the razor LSP. To do so, you must pass the handlers defined in the
 `rzls.roslyn_handlers` module:
 
 ```lua
 require('roslyn').setup {
   args = {
+    '--stdio',
     '--logLevel=Information',
     '--extensionLogDirectory=' .. vim.fs.dirname(vim.lsp.get_log_path()),
     '--razorSourceGenerator=' .. vim.fs.joinpath(
@@ -118,7 +119,7 @@ require('roslyn').setup {
 ```lua
 return {
   {
-    'seblj/roslyn.nvim',
+    'seblyng/roslyn.nvim',
     ft = { 'cs', 'razor' },
     dependencies = {
       {
@@ -134,6 +135,7 @@ return {
     config = function()
       require('roslyn').setup {
         args = {
+          '--stdio',
           '--logLevel=Information',
           '--extensionLogDirectory=' .. vim.fs.dirname(vim.lsp.get_log_path()),
           '--razorSourceGenerator='

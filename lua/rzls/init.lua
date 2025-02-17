@@ -36,16 +36,20 @@ local defaultConfg = {
     capabilities = vim.lsp.protocol.make_client_capabilities(),
 }
 
+Log.rzlsnvim = "Loaded"
+vim.filetype.add({
+    extension = {
+        razor = "razor",
+        cshtml = "razor",
+    },
+})
+Log.rzlsnvim = "Added razor filetype"
+
 ---@param config rzls.Config
 function M.setup(config)
     Log.rzlsnvim = "Setting rzls config"
     local rzlsconfig = vim.tbl_deep_extend("force", defaultConfg, config)
-    rzlsconfig.path = get_cmd_path(rzlsconfig)
-    vim.filetype.add({
-        extension = {
-            razor = "razor",
-        },
-    })
+    rzlsconfig.path = rzlsconfig.path or get_cmd_path(rzlsconfig)
 
     local au = vim.api.nvim_create_augroup("rzls", { clear = true })
 
@@ -65,12 +69,8 @@ function M.setup(config)
                     "true",
                 },
                 on_init = function(client, _initialize_result)
-                    root_dir = client.root_dir
-                    documentstore.load_existing_files(client.root_dir)
-                    ---@module "roslyn"
-                    local roslyn_pipes = require("roslyn.server").get_pipes()
-                    vim.notify("roslyn client root: " .. client.root_dir)
-                    if roslyn_pipes[root_dir] then
+                    ---@diagnostic disable-next-line: undefined-field
+                    if _G.roslyn_initialized == true then
                         documentstore.initialize(client)
                     else
                         vim.api.nvim_create_autocmd("User", {
@@ -119,8 +119,6 @@ function M.setup(config)
         end,
         group = au,
     })
-
-    vim.treesitter.language.register("html", { "razor" })
 
     vim.api.nvim_create_autocmd("ColorScheme", {
         group = au,
