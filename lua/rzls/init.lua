@@ -71,6 +71,7 @@ function M.setup(config)
                 on_init = function(client, _initialize_result)
                     ---@diagnostic disable-next-line: undefined-field
                     if _G.roslyn_initialized == true then
+                        root_dir = client.root_dir
                         documentstore.initialize(client)
                     else
                         vim.api.nvim_create_autocmd("User", {
