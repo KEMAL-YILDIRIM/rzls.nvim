@@ -17,114 +17,114 @@ local iswin = not not (sysname:find("windows") or sysname:find("mingw"))
 ---@param config rzls.Config
 ---@return string
 local function get_cmd_path(config)
-    local data = vim.fs.normalize(vim.fn.stdpath("data") --[[@as string]])
-    local mason_path = vim.fs.joinpath(data, "mason", "bin", "rzls")
-    local mason_installation = iswin and string.format("%s.cmd", mason_path) or mason_path
+ local data = vim.fs.normalize(vim.fn.stdpath("data") --[[@as string]])
+ local mason_path = vim.fs.joinpath(data, "mason", "bin", "rzls")
+ local mason_installation = iswin and string.format("%s.cmd", mason_path) or mason_path
 
-    if vim.uv.fs_stat(mason_installation) ~= nil then
-        return mason_installation
-    end
+ if vim.uv.fs_stat(mason_installation) ~= nil then
+  return mason_installation
+ end
 
-    return config.path
+ return config.path
 end
 
 ---@type rzls.Config
 local defaultConfg = {
-    on_attach = function()
-        return nil
-    end,
-    capabilities = vim.lsp.protocol.make_client_capabilities(),
+ on_attach = function()
+  return nil
+ end,
+ capabilities = vim.lsp.protocol.make_client_capabilities(),
 }
 
 Log.rzlsnvim = "Loaded"
 vim.filetype.add({
-    extension = {
-        razor = "razor",
-        cshtml = "razor",
-    },
+ extension = {
+  razor = "razor",
+  cshtml = "razor",
+ },
 })
 Log.rzlsnvim = "Added razor filetype"
 
 ---@param config rzls.Config
 function M.setup(config)
-    Log.rzlsnvim = "Setting rzls config"
-    local rzlsconfig = vim.tbl_deep_extend("force", defaultConfg, config)
-    rzlsconfig.path = rzlsconfig.path or get_cmd_path(rzlsconfig)
+ Log.rzlsnvim = "Setting rzls config"
+ local rzlsconfig = vim.tbl_deep_extend("force", defaultConfg, config)
+ rzlsconfig.path = rzlsconfig.path or get_cmd_path(rzlsconfig)
 
-    local au = vim.api.nvim_create_augroup("rzls", { clear = true })
+ local au = vim.api.nvim_create_augroup("rzls", { clear = true })
 
-    vim.api.nvim_create_autocmd("FileType", {
-        pattern = { "razor" },
-        callback = function(ev)
-            local root_dir = vim.fn.expand("%:h:p")
-            local lsp_client_id = vim.lsp.start({
-                name = "rzls",
-                cmd = {
-                    rzlsconfig.path,
-                    "--logLevel",
-                    "0",
-                    "--DelegateToCSharpOnDiagnosticPublish",
-                    "true",
-                    "--UpdateBuffersForClosedDocuments",
-                    "true",
-                },
-                on_init = function(client, _initialize_result)
-                    ---@diagnostic disable-next-line: undefined-field
-                    if _G.roslyn_initialized == true then
-                        root_dir = client.root_dir
-                        documentstore.initialize(client)
-                    else
-                        vim.api.nvim_create_autocmd("User", {
-                            pattern = "RoslynInitialized",
-                            callback = function()
-                                documentstore.initialize(client)
-                            end,
-                            group = au,
-                        })
-                    end
-                end,
-                root_dir = root_dir,
-                on_attach = function(client, bufnr)
-                    vim.notify("starting rzls: " .. rzlsconfig.path)
-                    razor.apply_highlights()
-                    documentstore.register_vbufs_by_path(vim.uri_to_fname(vim.uri_from_bufnr(bufnr)), true)
-                    rzlsconfig.on_attach(client, bufnr)
-                end,
-                capabilities = rzlsconfig.capabilities,
-                settings = {
-                    html = vim.empty_dict(),
-                    razor = vim.empty_dict(),
-                },
-                handlers = handlers,
-            })
+ vim.api.nvim_create_autocmd("FileType", {
+  pattern = { "razor" },
+  callback = function(ev)
+   local root_dir = vim.fn.expand("%:h:p")
+   local lsp_client_id = vim.lsp.start({
+    name = "rzls",
+    cmd = {
+     rzlsconfig.path,
+     "--logLevel",
+     "0",
+     "--DelegateToCSharpOnDiagnosticPublish",
+     "true",
+     "--UpdateBuffersForClosedDocuments",
+     "true",
+    },
+    on_init = function(client, _initialize_result)
+     ---@diagnostic disable-next-line: undefined-field
+     if _G.roslyn_initialized == true then
+      root_dir = client.root_dir
+      documentstore.initialize(client)
+     else
+      vim.api.nvim_create_autocmd("User", {
+       pattern = "RoslynInitialized",
+       callback = function()
+        documentstore.initialize(client)
+       end,
+       group = au,
+      })
+     end
+    end,
+    root_dir = root_dir,
+    on_attach = function(client, bufnr)
+     vim.notify("starting rzls: " .. rzlsconfig.path)
+     razor.apply_highlights()
+     documentstore.register_vbufs_by_path(vim.uri_to_fname(vim.uri_from_bufnr(bufnr)), true)
+     rzlsconfig.on_attach(client, bufnr)
+    end,
+    capabilities = rzlsconfig.capabilities,
+    settings = {
+     html = vim.empty_dict(),
+     razor = vim.empty_dict(),
+    },
+    handlers = handlers,
+   })
 
-            if lsp_client_id == nil then
-                vim.notify("Could not start Razor LSP", vim.log.levels.ERROR, { title = "rzls.nvim" })
-                return
-            end
+   if lsp_client_id == nil then
+    vim.notify("Could not start Razor LSP", vim.log.levels.ERROR, { title = "rzls.nvim" })
+    return
+   end
 
-            vim.lsp.buf_attach_client(ev.buf, lsp_client_id)
+   vim.lsp.buf_attach_client(ev.buf, lsp_client_id)
 
-            local aftershave_client_id = vim.lsp.start({
-                name = "aftershave",
-                root_dir = root_dir,
-                cmd = require("rzls.server.lsp").server,
-            })
+   local aftershave_client_id = vim.lsp.start({
+    name = "aftershave",
+    root_dir = root_dir,
+    cmd = require("rzls.server.lsp").server,
+   })
 
-            if aftershave_client_id == nil then
-                vim.notify("Could not start aftershave LSP", vim.log.levels.ERROR, { title = "rzls.nvim" })
-                return
-            end
+   if aftershave_client_id == nil then
+    vim.notify("Could not start aftershave LSP", vim.log.levels.ERROR, { title = "rzls.nvim" })
+    return
+   end
 
-            vim.lsp.buf_attach_client(ev.buf, aftershave_client_id)
-        end,
-        group = au,
-    })
+   vim.lsp.buf_attach_client(ev.buf, aftershave_client_id)
+  end,
+  group = au,
+ })
 
-    vim.api.nvim_create_autocmd("ColorScheme", {
-        group = au,
-        callback = razor.apply_highlights,
-    })
+ vim.api.nvim_create_autocmd("ColorScheme", {
+  group = au,
+  callback = razor.apply_highlights,
+ })
 end
 
 return M
