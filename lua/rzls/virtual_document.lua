@@ -71,7 +71,7 @@ function VirtualDocument:update_content()
     end
 
     if self.buf then
-        local buf_eol = utils.buffer_eol(self.buf)
+        local buf_eol = utils.buffer_eol(self.content)
         local lines = vim.fn.split(self.content, buf_eol, true)
         vim.api.nvim_buf_set_lines(self.buf, 0, -1, false, lines)
     end
