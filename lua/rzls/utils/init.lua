@@ -25,7 +25,7 @@ function M.buffer_eol(content)
 	end
 end
 
-math.randomseed(tonumber(tostring(os.time()):reverse():sub(1, 9)))
+math.randomseed(tonumber(tostring(os.time()):reverse():sub(1, 9)) or os.time())
 function M.uuid()
     local template = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"
     return string.gsub(template, "[xy]", function(c)
