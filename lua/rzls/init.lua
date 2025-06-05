@@ -14,17 +14,17 @@ local M = {}
 ---@param config rzls.Config
 ---@return string
 local function get_cmd_path(config)
-   ---@return string
-   local function get_mason_installation()
-      local mason_installation = vim.fs.joinpath(vim.fn.stdpath("data") --[[@as string]], "mason", "bin", "rzls")
-      return vim.uv.os_uname().sysname == "Windows_NT" and string.format("%s.cmd", mason_installation)
-          or mason_installation
-   end
+    ---@return string
+    local function get_mason_installation()
+        local mason_installation = vim.fs.joinpath(vim.fn.stdpath("data") --[[@as string]], "mason", "bin", "rzls")
+        return vim.uv.os_uname().sysname == "Windows_NT" and string.format("%s.cmd", mason_installation)
+            or mason_installation
+    end
 
-   if config.path then
-      return config.path
-   end
-   return get_mason_installation()
+    if config.path then
+        return config.path
+    end
+    return get_mason_installation()
 end
 
 ---@type rzls.Config
@@ -37,10 +37,10 @@ local defaultConfig = {
 
 Log.rzlsnvim = "Loaded"
 vim.filetype.add({
-   extension = {
-      razor = "razor",
-      cshtml = "razor",
-   },
+    extension = {
+        razor = "razor",
+        cshtml = "razor",
+    },
 })
 Log.rzlsnvim = "Added razor filetype"
 
@@ -50,7 +50,7 @@ function M.setup(config)
     local rzlsconfig = vim.tbl_deep_extend("force", defaultConfig, config)
     rzlsconfig.path = rzlsconfig.path or get_cmd_path(rzlsconfig)
 
-   local au = vim.api.nvim_create_augroup("rzls", { clear = true })
+    local au = vim.api.nvim_create_augroup("rzls", { clear = true })
 
     local root_dir = vim.fn.getcwd()
     M.rzls_client_id = nil
@@ -116,34 +116,39 @@ function M.setup(config)
     vim.api.nvim_create_autocmd("FileType", {
         pattern = "razor",
         callback = function(ev)
-            M.start_rzls()
-            assert(M.rzls_client_id, "Razor LSP client not started")
-            vim.lsp.buf_attach_client(ev.buf, M.rzls_client_id)
+            local co = coroutine.create(function()
+                M.start_rzls()
+                assert(M.rzls_client_id, "Razor LSP client not started")
+                vim.lsp.buf_attach_client(ev.buf, M.rzls_client_id)
 
-         local aftershave_client_id = vim.lsp.start({
-            name = "aftershave",
-            root_dir = root_dir,
-            cmd = require("rzls.server.lsp").server,
-         })
+                local aftershave_client_id = vim.lsp.start({
+                    name = "aftershave",
+                    root_dir = root_dir,
+                    cmd = require("rzls.server.lsp").server,
+                })
 
-         if aftershave_client_id == nil then
-            vim.notify("Could not start aftershave LSP", vim.log.levels.ERROR, { title = "rzls.nvim" })
-            return
-         end
+                if aftershave_client_id == nil then
+                    vim.notify("Could not start aftershave LSP", vim.log.levels.ERROR, { title = "rzls.nvim" })
+                    return
+                end
 
-         vim.lsp.buf_attach_client(ev.buf, aftershave_client_id)
+                vim.lsp.buf_attach_client(ev.buf, aftershave_client_id)
 
-    function M.load_existing_files(path)
-        local files = vim.fn.glob(path .. "/**/*.{razor,cshtml}", true, true)
-        for _, file in ipairs(files) do
-            Log.rzlsnvim = "Preloading " .. file .. " into documentstore"
-            documentstore.register_vbufs_by_path(file, false)
-        end
-    end
+                function M.load_existing_files(path)
+                    local files = vim.fn.glob(path .. "/**/*.{razor,cshtml}", true, true)
+                    for _, file in ipairs(files) do
+                        Log.rzlsnvim = "Preloading " .. file .. " into documentstore"
+                        documentstore.register_vbufs_by_path(file, false)
+                    end
+                end
 
-    vim.api.nvim_create_autocmd("ColorScheme", {
-        group = au,
-        callback = razor.apply_highlights,
+                vim.api.nvim_create_autocmd("ColorScheme", {
+                    group = au,
+                    callback = razor.apply_highlights,
+                })
+            end)
+            coroutine.resume(co)
+        end,
     })
 end
 
