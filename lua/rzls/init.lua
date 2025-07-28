@@ -120,17 +120,33 @@ function M.setup(config)
                 assert(M.rzls_client_id, "Razor LSP client not started")
                 vim.lsp.buf_attach_client(ev.buf, M.rzls_client_id)
 
-            if not M.aftershave_client_id then
-                M.aftershave_client_id = vim.lsp.start({
-                    name = "aftershave",
-                    root_dir = root_dir,
-                    cmd = require("rzls.server.lsp").server,
-                })
-            end
-            assert(M.aftershave_client_id, "Aftershave LSP client not started")
+                if not M.aftershave_client_id then
+                    M.aftershave_client_id = vim.lsp.start({
+                        name = "aftershave",
+                        root_dir = root_dir,
+                        cmd = require("rzls.server.lsp").server,
+                    })
+                end
+                assert(M.aftershave_client_id, "Aftershave LSP client not started")
 
-            vim.lsp.buf_attach_client(ev.buf, M.aftershave_client_id)
+                vim.lsp.buf_attach_client(ev.buf, M.aftershave_client_id)
+            end)
+            coroutine.resume(co)
         end,
+        group = au,
+    })
+
+    function M.load_existing_files(path)
+        local files = vim.fn.glob(path .. "/**/*.{razor,cshtml}", true, true)
+        for _, file in ipairs(files) do
+            Log.rzlsnvim = "Preloading " .. file .. " into documentstore"
+            documentstore.register_vbufs_by_path(file, false)
+        end
+    end
+
+    vim.api.nvim_create_autocmd("ColorScheme", {
+        group = au,
+        callback = razor.apply_highlights,
     })
 end
 
