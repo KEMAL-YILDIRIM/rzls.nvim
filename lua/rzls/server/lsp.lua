@@ -5,13 +5,27 @@ local M = {}
 local requests = {
     [vim.lsp.protocol.Methods.initialize] = function(_)
         local rzls_client
-        vim.wait(10000, function()
+        -- Use coroutine to wait for client without blocking main thread
+        local co = coroutine.running()
+        local check_client
+        check_client = function()
             rzls_client = vim.lsp.get_clients({ name = r.lsp_names[r.language_kinds.razor] })[1]
             if rzls_client then
-                return true
+                if co then
+                    coroutine.resume(co)
+                end
+            else
+                vim.defer_fn(check_client, 100)
             end
-            return false
-        end, 100)
+        end
+        
+        if co then
+            check_client()
+            coroutine.yield()
+        else
+            -- Fallback if not in coroutine
+            rzls_client = vim.lsp.get_clients({ name = r.lsp_names[r.language_kinds.razor] })[1]
+        end
 
         if not rzls_client then
             Log.aftershave = "Failed to get rzls client"

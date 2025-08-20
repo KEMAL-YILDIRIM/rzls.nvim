@@ -115,10 +115,14 @@ function M.setup(config)
     vim.api.nvim_create_autocmd("FileType", {
         pattern = "razor",
         callback = function(ev)
-            local co = coroutine.create(function()
-                M.start_rzls()
-                assert(M.rzls_client_id, "Razor LSP client not started")
-                vim.lsp.buf_attach_client(ev.buf, M.rzls_client_id)
+            -- Use vim.schedule to avoid blocking the main thread
+            vim.schedule(function()
+                local rzls_client_id = M.start_rzls()
+                if not rzls_client_id then
+                    vim.notify("Failed to start Razor LSP client", vim.log.levels.ERROR, { title = "rzls.nvim" })
+                    return
+                end
+                vim.lsp.buf_attach_client(ev.buf, rzls_client_id)
 
                 if not M.aftershave_client_id then
                     M.aftershave_client_id = vim.lsp.start({
@@ -127,11 +131,13 @@ function M.setup(config)
                         cmd = require("rzls.server.lsp").server,
                     })
                 end
-                assert(M.aftershave_client_id, "Aftershave LSP client not started")
+                if not M.aftershave_client_id then
+                    vim.notify("Failed to start Aftershave LSP client", vim.log.levels.ERROR, { title = "rzls.nvim" })
+                    return
+                end
 
                 vim.lsp.buf_attach_client(ev.buf, M.aftershave_client_id)
             end)
-            coroutine.resume(co)
         end,
         group = au,
     })

@@ -23,10 +23,11 @@ local function ensure_rzls_started()
         local rzls_client = vim.lsp.get_client_by_id(rzls_client_id)
         assert(rzls_client, "Could not find Razor LSP client")
         Log.rzlsnvim = string.format("Razor LSP started with client id: %s from a roslyn handler", rzls_client_id)
-        local started = vim.wait(10000, function()
-            return rzls_client.initialized
-        end, 100)
-        assert(started, "Razor LSP did not start in time")
+        -- Use non-blocking check with vim.schedule instead of vim.wait
+        if not rzls_client.initialized then
+            Log.rzlsnvim = "Razor LSP not yet initialized, will retry asynchronously"
+            return -- Let it retry on next call instead of blocking
+        end
         Log.rzlsnvim = string.format("Razor LSP initialized: %s", rzls_client.initialized)
     end
 end
