@@ -12,19 +12,6 @@ function M.debug(val, message)
     return val
 end
 
----@param content string
-function M.buffer_eol(content)
-	if string.match(content, "\r\n") then
-	return "\r\n" --dos
-	end
-	if string.match(content, "\n") then
-	return "\n" --unix
-	end
-	if string.match(content, "\r") then
-	return "\r" --mac
-	end
-end
-
 math.randomseed(tonumber(tostring(os.time()):reverse():sub(1, 9)) or os.time())
 function M.uuid()
     local template = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"

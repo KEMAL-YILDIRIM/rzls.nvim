@@ -18,7 +18,7 @@ local Log = require("rzls.log")
 ---@field checksum string
 ---@field checksum_algorithm number
 ---@field encoding_code_page number
----@field updates razor.VBufUpdate[]
+---@field updates VBufUpdate[]
 local VirtualDocument = {}
 
 VirtualDocument.__index = VirtualDocument
@@ -53,7 +53,7 @@ function VirtualDocument:new(bufnr, kind, uri)
 end
 
 ---@param content string
----@param change razor.razorTextChange
+---@param change Change
 local function apply_change(content, change)
     local before = vim.fn.strcharpart(content, 0, change.span.start)
     local after = vim.fn.strcharpart(content, change.span.start + change.span.length)
@@ -71,15 +71,14 @@ function VirtualDocument:update_content()
     end
 
     if self.buf then
-        local buf_eol = utils.buffer_eol(self.content)
-        local lines = vim.fn.split(self.content, buf_eol, true)
+        local lines = self:lines()
         vim.api.nvim_buf_set_lines(self.buf, 0, -1, false, lines)
     end
 
     self.change_event:fire()
 end
 
----@return razor.VBufUpdate[] edits
+---@return VBufUpdate[] edits
 ---@return string original_checksum
 ---@return number original_checksum_algorithm
 ---@return number|vim.NIL original_encoding_code_page
@@ -207,61 +206,50 @@ end
 
 ---@param position lsp.Position
 function VirtualDocument:index_of_position(position)
-    local eol = utils.buffer_eol(self.buf)
 
-    local content = self.content
     local line_number = 0
     local index = 0
 
-    for line in vim.gsplit(content, eol, { plain = true }) do
+    for line in self:lines() do
         if line_number == position.line then
             return index + position.character - 1
         end
-        index = index + line:len() + eol:len()
+        index = index + line:len()
         line_number = line_number + 1
     end
 
     return -1
 end
 
----@async
 ---@param position lsp.Position
 ---@return razor.LanguageQueryResponse|nil    # result on success, nil on failure.
 ---@return nil|lsp.ResponseError # nil on success, error message on failure.
 function VirtualDocument:language_query(position)
-    assert(self.kind == razor.language_kinds.razor, "Can only query ranges for razor documents")
+    assert(self.kind == razor.language_kinds.razor, "Can only map to document ranges for razor documents")
     local lsp = self:get_lsp_client()
     if not lsp then
         Log.rzlsnvim = "[Language Query]LSP client not found for " .. self.uri
         return nil, vim.lsp.rpc_response_error(vim.lsp.protocol.ErrorCodes.InvalidRequest, "LSP client not found")
     end
-    local co = coroutine.running()
-    if not co then
-        error("lsp_request must be called from within a coroutine")
-    end
-    lsp:request("razor/languageQuery", {
+    --=TODO: Remove when 0.11 only
+    ---@diagnostic disable-next-line: param-type-mismatch
+    local response = lsp.request_sync("razor/languageQuery", {
         position = position,
         uri = self.uri,
-    }, function(err, result)
-        if not result or err then
-            Log.rzlsnvim = "Language Query Request failed: " .. vim.inspect(err)
-            coroutine.resume(
-                co,
-                nil,
-                err
-                    or vim.lsp.rpc_response_error(
-                        vim.lsp.protocol.ErrorCodes.InvalidRequest,
-                        "Language Query request failed"
-                    )
+        --=TODO: Remove when 0.11 only
+        ---@diagnostic disable-next-line: param-type-mismatch
+    }, nil, self.buf)
+    if not response or response.err then
+        Log.rzlsnvim = "Language Query Request failed: " .. vim.inspect(response and response.err)
+        return nil,
+            response and response.err or vim.lsp.rpc_response_error(
+                vim.lsp.protocol.ErrorCodes.InvalidRequest,
+                "Language Query request failed"
             )
-        else
-            coroutine.resume(co, result, nil)
-        end
-    end, self.buf)
-    return coroutine.yield()
+    end
+    return response.result
 end
 
----@async
 ---@param language_kind razor.LanguageKind
 ---@param ranges lsp.Range[]
 ---@return razor.MapToDocumentRangesResponse|nil    # result on success, nil on failure.
@@ -274,89 +262,56 @@ function VirtualDocument:map_to_document_ranges(language_kind, ranges)
         return nil, vim.lsp.rpc_response_error(vim.lsp.protocol.ErrorCodes.InvalidRequest, "LSP client not found")
     end
 
-    local co = coroutine.running()
-    if not co then
-        error("lsp_request must be called from within a coroutine")
-    end
-
-    lsp:request("razor/mapToDocumentRanges", {
+    --=TODO: Remove when 0.11 only
+    ---@diagnostic disable-next-line: param-type-mismatch
+    local response = lsp.request_sync("razor/mapToDocumentRanges", {
         razorDocumentUri = self.uri,
         kind = language_kind,
         projectedRanges = ranges,
-    }, function(err, response)
-        if not response or err then
-            Log.rzlsnvim = "Map Document Range Request failed for " .. self.uri .. ": " .. vim.inspect(err)
-            coroutine.resume(
-                co,
-                nil,
-                err
-                    or vim.lsp.rpc_response_error(
-                        vim.lsp.protocol.ErrorCodes.InvalidRequest,
-                        "Map Document Range request failed"
-                    )
+        --=TODO: Remove when 0.11 only
+        ---@diagnostic disable-next-line: param-type-mismatch
+    }, nil, self.buf)
+    if not response or response.err then
+        Log.rzlsnvim = "Map Document Range Request failed for "
+            .. self.uri
+            .. ": "
+            .. vim.inspect(response and response.err)
+        return nil,
+            response and response.err or vim.lsp.rpc_response_error(
+                vim.lsp.protocol.ErrorCodes.InvalidRequest,
+                "Map Document Range request failed"
             )
-        else
-            coroutine.resume(co, response, nil)
-        end
-    end, self.buf)
-    return coroutine.yield()
-end
-
----try to attach the lsp
----@return vim.lsp.Client?
-function VirtualDocument:attach_lsp()
-    local lsp = self:get_lsp_client()
-    if not lsp then
-        local client = vim.lsp.get_clients({ name = razor.lsp_names[self.kind] })[1]
-        if not client then
-            Log.rzlsnvim = "LSP client not found for " .. self.uri
-            return
-        end
-        vim.lsp.buf_attach_client(self.buf, client.id)
-        return client
     end
-    return lsp
+    return response.result
 end
 
 --- issues an LSP request to the virtual document.
 --- Please use by passing a method from `vim.lsp.protocl.Methods`
 --- and type the expected return value as optional.
----@async
 ---@param method string
 ---@param params table
 ---@param buf number?
 ---@return any|nil    # result on success, nil on failure.
 ---@return nil|lsp.ResponseError # nil on success, error message on failure.
 function VirtualDocument:lsp_request(method, params, buf)
-    assert(vim.api.nvim_buf_is_loaded(self.buf), "attempted to attach to unloaded buffer")
     local lsp = self:get_lsp_client()
     if not lsp then
-        lsp = self:attach_lsp()
-        if not lsp then
-            --HACK: if we still dont have an lsp we are doomed
-            Log.rzlsnvim = "[" .. method .. "]LSP client not found for " .. self.uri
-            return nil, vim.lsp.rpc_response_error(vim.lsp.protocol.ErrorCodes.InvalidRequest, "LSP client not found")
-        end
+        Log.rzlsnvim = "[" .. method .. "]LSP client not found for " .. self.uri
+        return nil, vim.lsp.rpc_response_error(vim.lsp.protocol.ErrorCodes.InvalidRequest, "LSP client not found")
     end
-
-    local co = coroutine.running()
-    if not co then
-        error("lsp_request must be called from within a coroutine")
-    end
-    lsp:request(method, params, function(err, result)
-        if not result or err then
-            Log.rzlsnvim = "LSP request failed for " .. self.uri .. ": " .. vim.inspect(err)
-            Log.rzlsnvim = vim.inspect({ method = method, params = params })
-            coroutine.resume(
-                co,
-                nil,
-                err or vim.lsp.rpc_response_error(vim.lsp.protocol.ErrorCodes.InvalidRequest, "LSP request failed")
+    --=TODO: Remove when 0.11 only
+    ---@diagnostic disable-next-line: param-type-mismatch
+    local result = lsp.request_sync(method, params, nil, buf or self.buf)
+    if not result or result.err then
+        Log.rzlsnvim = "LSP request failed for " .. self.uri .. ": " .. vim.inspect(result and result.err)
+        Log.rzlsnvim = vim.inspect({ method = method, params = params })
+        return nil,
+            result and result.err or vim.lsp.rpc_response_error(
+                vim.lsp.protocol.ErrorCodes.InvalidRequest,
+                "LSP request failed"
             )
-        else
-            coroutine.resume(co, result, nil)
-        end
-    end, buf or self.buf)
-    return coroutine.yield()
+    end
+    return result.result, nil
 end
 
 return VirtualDocument
